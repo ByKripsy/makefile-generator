@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.style-chooser .vs__selected {
+    background-color: #425874;
+    border-radius: 15px;
+    padding: 2px 8px;
+    color: white;
+}
+
+.style-chooser .vs__deselect svg {
+    fill: #ff0000;
+    display: none;
+}
+
+.vs__open-indicator {
+    display: none;
+}
