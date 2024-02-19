@@ -4,6 +4,8 @@ import {nextTick, ref, watch} from 'vue'
 import {useModal} from 'vue-final-modal'
 import CodeModal from './CodeModal.vue'
 import Alert from "@/components/Alert.vue";
+import {useStore} from "vuex";
+import {generateMakefile} from "@/makefileGenerator.js";
 
 let project = ref("")
 let selectedFiles = ref([])
@@ -19,6 +21,30 @@ let gdb = ref(false)
 let valgrind = ref(false)
 let modalIsOpen = ref(false)
 
+project = ref(localStorage.getItem("project") || "");
+selectedFiles = ref(JSON.parse(localStorage.getItem("selectedFiles")) || []);
+compilerFlags = ref(localStorage.getItem("compilerFlags") || "-Wextra -Wall -Werror");
+compiler = ref(localStorage.getItem("compiler") || "clang");
+sourceDir = ref(localStorage.getItem("sourceDir") || "src");
+objectDir = ref(localStorage.getItem("objectDir") || "obj");
+libs = ref(JSON.parse(localStorage.getItem("libs")) || []);
+dependencies = ref(localStorage.getItem("dependencies") || "");
+includeDir = ref(localStorage.getItem("includeDir") || "include");
+gdb = ref(localStorage.getItem("gdb") === "true");
+valgrind = ref(localStorage.getItem("valgrind") === "true");
+
+watch(project, (newVal) => localStorage.setItem("project", newVal));
+watch(selectedFiles, () => localStorage.setItem("selectedFiles", JSON.stringify(selectedFiles.value)));
+watch(compilerFlags, (newVal) => localStorage.setItem("compilerFlags", newVal));
+watch(compiler, (newVal) => localStorage.setItem("compiler", newVal));
+watch(sourceDir, (newVal) => localStorage.setItem("sourceDir", newVal));
+watch(objectDir, (newVal) => localStorage.setItem("objectDir", newVal));
+watch(libs, (newVal) => localStorage.setItem("libs", JSON.stringify(newVal)));
+watch(dependencies, (newVal) => localStorage.setItem("dependencies", newVal));
+watch(includeDir, (newVal) => localStorage.setItem("includeDir", newVal));
+watch(gdb, (newVal) => localStorage.setItem("gdb", newVal));
+watch(valgrind, (newVal) => localStorage.setItem("valgrind", newVal));
+
 watch([gdb, valgrind], () => {
   if (gdb.value || valgrind.value) {
     if (!compilerFlags.value.includes("-g")) {
@@ -33,115 +59,54 @@ let dropdownShouldOpen = () => false
 function push(e, vm) {
   e.preventDefault()
   if (vm.search.length > 0) {
-    vm.search.split(" ").forEach((file) => {
-      selectedFiles.value.push(file)
-    })
-    console.log(selectedFiles.value)
+    vm.search.split(" ").forEach((file) => selectedFiles.value.push(file))
+    localStorage.setItem("selectedFiles", JSON.stringify(selectedFiles.value));
     vm.search = ''
-    nextTick(() => {
-      vm.$forceUpdate()
-    })
+    nextTick(() => vm.$forceUpdate())
   }
 }
 
 const keyhook = (map, vm) => ({
   ...map,
+  13: (e) => push(e, vm),
   32: (e) => push(e, vm),
   9: (e) => push(e, vm),
 })
 
-let makefile = ref("")
+let makefile = ""
 
-function generateMakefile() {
-  makefile.value = `NAME\t:= ${project.value}\n`
-  makefile.value += `\n`
-  makefile.value += `SRC_DIR\t:= ${sourceDir.value}\n`
-  makefile.value += `OBJ_DIR\t:= ${objectDir.value}\n`
-  if (dependencies.value) {
-    for (let dep of dependencies.value.split(" ")) {
-      makefile.value += `${dep.toUpperCase()}_D\t:= ${dep}\n`
-    }
-  }
-  makefile.value += `\n`
-  makefile.value += `CC\t\t:= ${compiler.value}\n`
-  makefile.value += `CFLAGS\t:= ${compilerFlags.value}\n`
-  makefile.value += `\n`
-  makefile.value += `INCLUDE\t:= -I ${includeDir.value}`
-  if (libs.value[0]) {
-    makefile.value += `\nLDFLAGS\t:=`
-    for (let lib of libs.value) {
-      makefile.value += ` -l${lib}`
-    }
-  }
-  if (dependencies.value) {
-    for (let dep of dependencies.value.split(" ")) {
-      makefile.value += ` -I $(${dep.toUpperCase()}_D)/include`
-    }
-    makefile.value += `\nLDLIBS\t:=`
-    for (let dep of dependencies.value.split(" ")) {
-      makefile.value += ` $(${dep.toUpperCase()}_D)/${dep}.a`
-    }
-  }
-  makefile.value += `\n`
-  makefile.value += `\n`
-  makefile.value += `SRC\t\t:= ${selectedFiles.value.join(" ")}\n`
-  makefile.value += `OBJ\t\t:= $(SRC:%.c=$(OBJ_DIR)/%.o)\n`
-  makefile.value += `\n`
-  makefile.value += `GREEN\t:= \\033[1;32m\n`
-  makefile.value += `\n`
-  makefile.value += `all: $(NAME)\n`
-  makefile.value += `\n`
-  makefile.value += `$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c\n`
-  makefile.value += `\t@mkdir -p $(OBJ_DIR)\n`
-  makefile.value += `\t@$(CC) $(CFLAGS) -o $@ -c $< && printf \"$(GREEN)✔️ $(notdir $<)[0m compiled\\n\"\n`
-  makefile.value += `\n`
-  makefile.value += `$(NAME): $(OBJ)\n`
-  makefile.value += `\t@$(CC) $(OBJ) -o $(NAME) $(LDFLAGS) $(LDLIBS) && printf \"$(GREEN)✔️ $(NAME)[0m compiled\\n\"\n`
-  makefile.value += `\n`
-  makefile.value += `run: $(NAME)\n`
-  makefile.value += `\t@./$(NAME)\n`
-  makefile.value += `\n`
-  makefile.value += `clean:\n`
-  makefile.value += `\t@rm -rf $(OBJ_DIR)\n`
-  makefile.value += `\n`
-  makefile.value += `fclean: clean\n`
-  makefile.value += `\t@rm -f $(NAME)\n`
-  makefile.value += `\n`
-  makefile.value += `re: clean all\n`
-  makefile.value += `\n`
-  if (valgrind.value) {
-    makefile.value += `valgrind: $(NAME)\n`
-    makefile.value += `\t@valgrind  --show-leak-kinds=all --leak-check=full --track-origins=yes ./$(NAME)\n`
-    makefile.value += `\n`
-  }
-  if (gdb.value) {
-    makefile.value += `gdb: $(NAME)\n`
-    makefile.value += `\t@gdb ./$(NAME)\n`
-    makefile.value += `\n`
-  }
-  makefile.value += `.PHONY: all clean fclean re run`
-  if (valgrind.value)
-    makefile.value += ` valgrind`
-  if (gdb.value)
-    makefile.value += ` gdb`
-  makefile.value += `\n`
+function validateFields() {
+  const fields = [
+    { value: project.value, error: 'Project name is required' },
+    { value: selectedFiles.value.length, error: 'At least one source file is required' },
+    { value: compiler.value, error: 'Compiler is required' },
+    { value: sourceDir.value, error: 'Source directory is required' },
+    { value: objectDir.value, error: 'Object directory is required' },
+    { value: includeDir.value, error: 'Include directory is required' },
+  ];
+
+  for (let field of fields) if (!field.value) return field.error;
+  return null;
 }
 
-const {open} = useModal({
-  component: CodeModal,
-  attrs: {
-    content: makefile
-  },
-})
-
+const store = useStore();
 function generate() {
-  generateMakefile()
-  open()
+  if (validateFields()) {
+    store.commit('showAlertWithProgress', validateFields());
+    return;
+  }
+  makefile = generateMakefile(project.value, selectedFiles.value, compilerFlags.value, compiler.value, sourceDir.value, objectDir.value, libs.value, includeDir.value, dependencies.value, gdb.value, valgrind.value)
+  useModal({
+    component: CodeModal,
+    attrs: {
+      content: makefile
+    },
+  }).open()
 }
 </script>
 
 <template>
-  <Alert />
+  <Alert/>
   <section class="max-w-4xl p-6 mx-auto bg-indigo-600 rounded-md shadow-md dark:bg-gray-800 mt-20 z-0">
     <h1 class="text-xl font-bold text-white capitalize dark:text-white">Makefile Generator</h1>
     <form>
@@ -156,7 +121,7 @@ function generate() {
           <label class="text-white dark:text-gray-200" for="sourceFiles">Source Files</label>
           <v-select id="sourceFiles" multiple taggable :create-option="file => ({ value: file, label: file })"
                     v-model="selectedFiles"
-                    placeholder="file1.cpp,file2.cpp"
+                    placeholder="file1.cpp, file2.cpp"
                     class="style-chooser block w-full px-4 py-2 mt-2 text-gray-700 bg-white border rounded-md dark:bg-gray-800
                     dark:text-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none focus:ring"
                     :dropdown-should-open="dropdownShouldOpen"
@@ -196,12 +161,6 @@ function generate() {
                  placeholder="obj">
         </div>
 
-<!--        <div>-->
-<!--          <label class="text-white dark:text-gray-200" for="dependencies">Libraries</label>-->
-<!--          <input id="dependencies" type="text" v-model="libs"-->
-<!--                 class="block w-full px-4 py-2 mt-2 text-gray-700 bg-white border border-gray-300 rounded-md dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none focus:ring"-->
-<!--                 placeholder="-lpthread -lm -lglfw">-->
-<!--        </div>-->
         <div>
           <label class="text-white dark:text-gray-200" for="sourceFiles">Libraries</label>
           <v-select id="sourceFiles" multiple taggable
@@ -227,15 +186,15 @@ function generate() {
                  placeholder="libft mlx">
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <input type="checkbox" id="valgrind" name="valgrind" v-model="valgrind">
-            <label for="valgrind" class="text-white dark:text-gray-200"> Add Valgrind</label>
+        <div class="flex justify-evenly">
+          <div class="flex">
+            <input type="checkbox" id="valgrind" name="valgrind" v-model="valgrind" class="mt-1 rounded bg-gray-800">
+            <label for="valgrind" class="ms-3 text-white dark:text-gray-200"> Add Valgrind</label>
           </div>
 
-          <div>
-            <input type="checkbox" id="gdb" name="gdb" v-model="gdb">
-            <label for="gdb" class="text-white dark:text-gray-200"> Add GDB</label>
+          <div class="flex">
+            <input type="checkbox" id="gdb" name="gdb" v-model="gdb" class="mt-1 rounded bg-gray-800">
+            <label for="gdb" class="ms-3 text-white dark:text-gray-200"> Add GDB</label>
           </div>
         </div>
       </div>
@@ -243,7 +202,7 @@ function generate() {
       <div class="flex justify-end mt-6">
         <button type="submit"
                 @click.prevent="() => generate()"
-                class="px-6 py-2 leading-5 text-white transition-colors duration-200 transform bg-pink-500 rounded-md hover:bg-pink-700 focus:outline-none focus:bg-gray-600">
+                class="px-6 py-2 leading-5 text-white transition-colors duration-200 transform bg-blue-800 rounded-md hover:bg-blue-600">
           Generate
         </button>
       </div>
@@ -254,6 +213,11 @@ function generate() {
 </template>
 
 <style scoped>
+input[type="checkbox"]:focus {
+  outline: none;
+  box-shadow: none;
+  border-color: #64748b;
+}
 >>> {
   --vs-dropdown-bg: #0f172a;
   --vs-border-color: #FFFFFF00;
