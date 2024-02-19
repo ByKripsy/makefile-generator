@@ -3,6 +3,7 @@ import vSelect from 'vue-select'
 import {nextTick, ref, watch} from 'vue'
 import {useModal} from 'vue-final-modal'
 import CodeModal from './CodeModal.vue'
+import Alert from "@/components/Alert.vue";
 
 let project = ref("")
 let selectedFiles = ref([])
@@ -10,7 +11,8 @@ let compilerFlags = ref("-Wextra -Wall -Werror")
 let compiler = ref("clang")
 let sourceDir = ref("src")
 let objectDir = ref("obj")
-let libs = ref("")
+let libs = ref([])
+let libsOptions = ref(["readline", "pthread", "m", "glfw"])
 let dependencies = ref("")
 let includeDir = ref("include")
 let gdb = ref(false)
@@ -31,7 +33,9 @@ let dropdownShouldOpen = () => false
 function push(e, vm) {
   e.preventDefault()
   if (vm.search.length > 0) {
-    selectedFiles.value.push(vm.search)
+    vm.search.split(" ").forEach((file) => {
+      selectedFiles.value.push(file)
+    })
     console.log(selectedFiles.value)
     vm.search = ''
     nextTick(() => {
@@ -63,6 +67,12 @@ function generateMakefile() {
   makefile.value += `CFLAGS\t:= ${compilerFlags.value}\n`
   makefile.value += `\n`
   makefile.value += `INCLUDE\t:= -I ${includeDir.value}`
+  if (libs.value[0]) {
+    makefile.value += `\nLDFLAGS\t:=`
+    for (let lib of libs.value) {
+      makefile.value += ` -l${lib}`
+    }
+  }
   if (dependencies.value) {
     for (let dep of dependencies.value.split(" ")) {
       makefile.value += ` -I $(${dep.toUpperCase()}_D)/include`
@@ -131,7 +141,8 @@ function generate() {
 </script>
 
 <template>
-  <section class="max-w-4xl p-6 mx-auto bg-indigo-600 rounded-md shadow-md dark:bg-gray-800 mt-20">
+  <Alert />
+  <section class="max-w-4xl p-6 mx-auto bg-indigo-600 rounded-md shadow-md dark:bg-gray-800 mt-20 z-0">
     <h1 class="text-xl font-bold text-white capitalize dark:text-white">Makefile Generator</h1>
     <form>
       <div class="grid grid-cols-1 gap-6 mt-4 sm:grid-cols-2">
@@ -185,11 +196,21 @@ function generate() {
                  placeholder="obj">
         </div>
 
+<!--        <div>-->
+<!--          <label class="text-white dark:text-gray-200" for="dependencies">Libraries</label>-->
+<!--          <input id="dependencies" type="text" v-model="libs"-->
+<!--                 class="block w-full px-4 py-2 mt-2 text-gray-700 bg-white border border-gray-300 rounded-md dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none focus:ring"-->
+<!--                 placeholder="-lpthread -lm -lglfw">-->
+<!--        </div>-->
         <div>
-          <label class="text-white dark:text-gray-200" for="dependencies">Libraries</label>
-          <input id="dependencies" type="text" v-model="libs"
-                 class="block w-full px-4 py-2 mt-2 text-gray-700 bg-white border border-gray-300 rounded-md dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none focus:ring"
-                 placeholder="-lpthread -lm -lglfw">
+          <label class="text-white dark:text-gray-200" for="sourceFiles">Libraries</label>
+          <v-select id="sourceFiles" multiple taggable
+                    :options="libsOptions"
+                    v-model="libs"
+                    class="style-chooser block w-full px-4 py-2 mt-2 text-gray-700 bg-white border rounded-md dark:bg-gray-800
+                    dark:text-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none focus:ring"
+                    >
+          </v-select>
         </div>
 
         <div>
@@ -234,6 +255,7 @@ function generate() {
 
 <style scoped>
 >>> {
+  --vs-dropdown-bg: #0f172a;
   --vs-border-color: #FFFFFF00;
 }
 </style>
