@@ -14,7 +14,7 @@ watch(() => store.state.progress, newVal => progress.value = newVal);
 </script>
 
 <template>
-  <div v-if="showAlert" class="fixed right-0 m-4">
+  <div v-if="showAlert" class="fixed right-0 m-4 z-50">
     <div class="bg-gray-800 rounded-md shadow-lg max-w-sm w-80">
       <p class="text-sm font-medium text-red-400 p-3">
         <svg class="flex-shrink-0 inline w-4 h-4 me-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
