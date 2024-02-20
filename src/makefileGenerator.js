@@ -15,6 +15,11 @@ export function generateMakefile(project, selectedFiles, compilerFlags, compiler
     makefile += `CFLAGS\t:= ${compilerFlags}\n`
     makefile += `\n`
     makefile += `INCLUDE\t:= -I ${includeDir}`
+    if (dependencies) {
+        for (let dep of dependencies.split(" ")) {
+            makefile += ` -I $(${dep.toUpperCase()}_D)/include`
+        }
+    }
     if (libs[0]) {
         makefile += `\nLDFLAGS\t:=`
         for (let lib of libs) {
@@ -22,9 +27,6 @@ export function generateMakefile(project, selectedFiles, compilerFlags, compiler
         }
     }
     if (dependencies) {
-        for (let dep of dependencies.split(" ")) {
-            makefile += ` -I $(${dep.toUpperCase()}_D)/include`
-        }
         makefile += `\nLDLIBS\t:=`
         for (let dep of dependencies.split(" ")) {
             // makefile += ` $(${dep.toUpperCase()}_D)/${dep}.a`
