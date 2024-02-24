@@ -147,6 +147,7 @@ function generate() {
           multiple
           taggable
           keys
+          optional
           @update:model-value="newVal => { libs = newVal }"
         />
         <VSelect
@@ -157,6 +158,7 @@ function generate() {
           taggable
           no-dropdown
           keys
+          optional
           @update:model-value="newVal => { dependencies = newVal }"
         />
 
