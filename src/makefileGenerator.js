@@ -41,6 +41,7 @@ export function generateMakefile(project, selectedFiles, compilerFlags, compiler
         makefile += `ARGS\t:= ${args}\n`
     }
     makefile += `GREEN\t:= \\033[1;32m\n`
+    makefile += `NC\t\t:= \\033[0m\n`
     makefile += `\n`
     makefile += `all: $(NAME)\n`
     makefile += `\n`
@@ -52,11 +53,11 @@ export function generateMakefile(project, selectedFiles, compilerFlags, compiler
     if (dependencies[0]) {
         makefile += ` $(LDLIBS)`
     }
-    makefile += ` && printf \"$(GREEN)✔️ $(NAME)[0m compiled\\n\"\n`
+    makefile += ` && printf \"$(GREEN)✔️ $(NAME)$(NC) compiled\\n\"\n`
     makefile += `\n`
     makefile += `$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c\n`
     makefile += `\t@mkdir -p $(OBJ_DIR)\n`
-    makefile += `\t@$(CC) $(CFLAGS) -o $@ -c $< && printf \"$(GREEN)✔️ $(notdir $<)[0m compiled\\n\"\n`
+    makefile += `\t@$(CC) $(CFLAGS) -o $@ -c $< && printf \"$(GREEN)✔️ $(notdir $<)$(NC) compiled\\n\"\n`
     makefile += `\n`
     makefile += `run: $(NAME)\n`
     makefile += `\t@./$(NAME)`
