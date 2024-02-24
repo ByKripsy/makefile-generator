@@ -6,8 +6,8 @@ import { ModalsContainer } from 'vue-final-modal';
 </script>
 
 <template>
-  <Header name="Makefile Generator"/>
-  <MainForm/>
+  <Header name="Makefile Generator" />
+  <MainForm />
   <Footer />
   <ModalsContainer />
 </template>

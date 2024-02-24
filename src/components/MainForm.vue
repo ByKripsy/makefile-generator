@@ -1,47 +1,38 @@
 <script setup>
-import vSelect from 'vue-select'
-import {nextTick, ref, watch} from 'vue'
+import {ref, watch} from 'vue'
 import {useModal} from 'vue-final-modal'
 import CodeModal from './CodeModal.vue'
 import Alert from "@/components/Alert.vue";
 import {useStore} from "vuex";
 import {generateMakefile} from "@/makefileGenerator.js";
+import Input from "@/components/Input.vue";
+import Select from "@/components/Select.vue";
+import VSelect from "@/components/VSelect.vue";
 
-let project = ref("")
-let selectedFiles = ref([])
-let compilerFlags = ref("-Wextra -Wall -Werror")
-let compiler = ref("clang")
-let sourceDir = ref("src")
-let objectDir = ref("obj")
-let libs = ref([])
-let libsOptions = ref(["readline", "pthread", "m", "glfw"])
-let dependencies = ref("")
-let includeDir = ref("include")
-let gdb = ref(false)
-let valgrind = ref(false)
-let modalIsOpen = ref(false)
-
-project = ref(localStorage.getItem("project") || "");
-selectedFiles = ref(JSON.parse(localStorage.getItem("selectedFiles")) || []);
-compilerFlags = ref(localStorage.getItem("compilerFlags") || "-Wextra -Wall -Werror");
-compiler = ref(localStorage.getItem("compiler") || "clang");
-sourceDir = ref(localStorage.getItem("sourceDir") || "src");
-objectDir = ref(localStorage.getItem("objectDir") || "obj");
-libs = ref(JSON.parse(localStorage.getItem("libs")) || []);
-dependencies = ref(localStorage.getItem("dependencies") || "");
-includeDir = ref(localStorage.getItem("includeDir") || "include");
-gdb = ref(localStorage.getItem("gdb") === "true");
-valgrind = ref(localStorage.getItem("valgrind") === "true");
+let project = ref(localStorage.getItem("project") || "");
+let sourceFiles = ref(JSON.parse(localStorage.getItem("sourceFiles")) || []);
+let compilerFlags = ref(localStorage.getItem("compilerFlags") || "-Wextra -Wall -Werror");
+let compiler = ref(localStorage.getItem("compiler") || "clang");
+let sourceDir = ref(localStorage.getItem("sourceDir") || "src");
+let objectDir = ref(localStorage.getItem("objectDir") || "obj");
+let libs = ref(JSON.parse(localStorage.getItem("libs")) || []);
+let libsOptions = ref(["readline", "pthread", "m", "glfw"]);
+let compilerOptions = ref(["clang", "gcc", "clang++", "g++"]);
+let includeDir = ref(localStorage.getItem("includeDir") || "include");
+let dependencies = ref(JSON.parse(localStorage.getItem("dependencies")) || []);
+let args = ref(localStorage.getItem("args") || "");
+let gdb = ref(localStorage.getItem("gdb") === "true");
+let valgrind = ref(localStorage.getItem("valgrind") === "true");
+let modalIsOpen = ref(false);
 
 watch(project, (newVal) => localStorage.setItem("project", newVal));
-watch(selectedFiles, () => localStorage.setItem("selectedFiles", JSON.stringify(selectedFiles.value)));
 watch(compilerFlags, (newVal) => localStorage.setItem("compilerFlags", newVal));
 watch(compiler, (newVal) => localStorage.setItem("compiler", newVal));
 watch(sourceDir, (newVal) => localStorage.setItem("sourceDir", newVal));
 watch(objectDir, (newVal) => localStorage.setItem("objectDir", newVal));
-watch(libs, (newVal) => localStorage.setItem("libs", JSON.stringify(newVal)));
-watch(dependencies, (newVal) => localStorage.setItem("dependencies", newVal));
 watch(includeDir, (newVal) => localStorage.setItem("includeDir", newVal));
+// watch(dependencies, (newVal) => localStorage.setItem("dependencies", newVal));
+watch(args, (newVal) => localStorage.setItem("args", newVal));
 watch(gdb, (newVal) => localStorage.setItem("gdb", newVal));
 watch(valgrind, (newVal) => localStorage.setItem("valgrind", newVal));
 
@@ -54,31 +45,11 @@ watch([gdb, valgrind], () => {
     compilerFlags.value = compilerFlags.value.replace(" -g", "")
   }
 })
-let dropdownShouldOpen = () => false
-
-function push(e, vm) {
-  e.preventDefault()
-  if (vm.search.length > 0) {
-    vm.search.split(" ").forEach((file) => selectedFiles.value.push(file))
-    localStorage.setItem("selectedFiles", JSON.stringify(selectedFiles.value));
-    vm.search = ''
-    nextTick(() => vm.$forceUpdate())
-  }
-}
-
-const keyhook = (map, vm) => ({
-  ...map,
-  13: (e) => push(e, vm),
-  32: (e) => push(e, vm),
-  9: (e) => push(e, vm),
-})
-
-let makefile = ""
 
 function validateFields() {
   const fields = [
     {value: project.value, error: 'Project name is required'},
-    {value: selectedFiles.value.length, error: 'At least one source file is required'},
+    {value: sourceFiles.value.length, error: 'At least one source file is required'},
     {value: compiler.value, error: 'Compiler is required'},
     {value: sourceDir.value, error: 'Source directory is required'},
     {value: objectDir.value, error: 'Object directory is required'},
@@ -96,7 +67,7 @@ function generate() {
     store.commit('showAlertWithProgress', validateFields());
     return;
   }
-  makefile = generateMakefile(project.value, selectedFiles.value, compilerFlags.value, compiler.value, sourceDir.value, objectDir.value, libs.value, includeDir.value, dependencies.value, gdb.value, valgrind.value)
+  let makefile = generateMakefile(project.value, sourceFiles.value, compilerFlags.value, compiler.value, sourceDir.value, objectDir.value, libs.value, includeDir.value, dependencies.value, args.value, gdb.value, valgrind.value)
   useModal({
     component: CodeModal,
     attrs: {
@@ -107,118 +78,135 @@ function generate() {
 </script>
 
 <template>
-  <Alert/>
+  <Alert />
   <section class="max-w-4xl p-6 mx-auto bg-gray-800 rounded-md shadow-md mt-20 z-0">
-    <h1 class="text-xl font-bold text-white capitalize">Makefile Generator</h1>
     <form>
       <div class="grid grid-cols-1 gap-6 mt-4 sm:grid-cols-2">
-        <div>
-          <label class="text-gray-200" for="projectName">Project Name</label>
-          <input id="projectName" type="text" v-model="project"
-                 class="block w-full px-4 py-2 mt-2 border rounded-md 
-                 bg-gray-800 text-gray-300 border-gray-600 focus:border-blue-500 focus:outline-none focus:ring">
-        </div>
+        <Input
+          v-model="project"
+          name="projectName"
+          label="Project Name"
+          placeholder="my_project"
+        />
+        <VSelect
+          name="sourceFiles"
+          label="Source Files"
+          :model-value="sourceFiles"
+          multiple
+          taggable
+          no-dropdown
+          keys
+          @update:model-value="newVal => { sourceFiles = newVal }"
+        />
 
-        <div>
-          <label class="text-gray-200" for="sourceFiles">Source Files</label>
-          <v-select id="sourceFiles" multiple taggable :create-option="file => ({ value: file, label: file })"
-                    v-model="selectedFiles"
-                    placeholder="file1.cpp, file2.cpp"
-                    class="style-chooser block w-full px-4 py-2 mt-2 border rounded-md bg-gray-800
-                    text-gray-300 border-gray-600 focus:border-blue-500 focus:outline-none focus:ring"
-                    :dropdown-should-open="dropdownShouldOpen"
-                    :map-keydown="keyhook">
-          </v-select>
-        </div>
+        <Input
+          v-model="compilerFlags"
+          name="compilerFlags"
+          label="Compiler Flags"
+          placeholder="-Wextra -Wall -Werror"
+        />
+        <Select
+          v-model="compiler"
+          name="compiler"
+          label="Compiler"
+          :options="compilerOptions"
+        />
 
-        <div>
-          <label class="text-gray-200" for="compilerFlags">Compiler Flags</label>
-          <input id="compilerFlags" type="text" v-model="compilerFlags"
-                 class="block w-full px-4 py-2 mt-2 border rounded-md
-                  bg-gray-800 text-gray-300 border-gray-600 focus:border-blue-500 focus:outline-none focus:ring"
-                 placeholder="-Wextra -Wall -Werror">
-        </div>
+        <Input
+          v-model="sourceDir"
+          name="sourceDir"
+          label="Source Directory"
+          placeholder="src"
+        />
+        <Input
+          v-model="objectDir"
+          name="objectDir"
+          label="Object Directory"
+          placeholder="obj"
+        />
 
-        <div>
-          <label class="text-gray-200" for="compiler">Compiler</label>
-          <select id="compiler" v-model="compiler"
-                  class="block w-full px-4 py-2 mt-2 border rounded-md
-                   bg-gray-800 text-gray-300 border-gray-600 focus:border-blue-500 focus:outline-none focus:ring">
-            <option>clang</option>
-            <option>gcc</option>
-            <option>clang++</option>
-            <option>g++</option>
-          </select>
-        </div>
+        <Input
+          v-model="includeDir"
+          name="includeDir"
+          label="Include Directory"
+          placeholder="include"
+        />
+        <Input
+          v-model="args"
+          name="arguments"
+          label="Arguments"
+          placeholder="5 500 200 200"
+          optional
+        />
 
-        <div>
-          <label class="text-gray-200" for="sourceDir">Source Directory</label>
-          <input id="sourceDir" type="text" v-model="sourceDir"
-                 class="block w-full px-4 py-2 mt-2 border rounded-md
-                  bg-gray-800 text-gray-300 border-gray-600 focus:border-blue-500 focus:outline-none focus:ring"
-                 placeholder="src">
-        </div>
+        <VSelect
+          name="libs"
+          label="Libraries"
+          :options="libsOptions"
+          :model-value="libs"
+          multiple
+          taggable
+          keys
+          @update:model-value="newVal => { libs = newVal }"
+        />
+        <VSelect
+          name="dependencies"
+          label="Dependencies"
+          :model-value="dependencies"
+          multiple
+          taggable
+          no-dropdown
+          keys
+          @update:model-value="newVal => { dependencies = newVal }"
+        />
 
-        <div>
-          <label class="text-gray-200" for="objectDir">Object Directory</label>
-          <input id="objectDir" type="text" v-model="objectDir"
-                 class="block w-full px-4 py-2 mt-2 border rounded-md
-                  bg-gray-800 text-gray-300 border-gray-600 focus:border-blue-500 focus:outline-none focus:ring"
-                 placeholder="obj">
-        </div>
-
-        <div>
-          <label class="text-gray-200" for="sourceFiles">Libraries</label>
-          <v-select id="sourceFiles" multiple taggable
-                    :options="libsOptions"
-                    v-model="libs"
-                    class="style-chooser block w-full px-4 py-2 mt-2 border rounded-md bg-gray-800
-                    text-gray-300 border-gray-600 focus:border-blue-500 focus:outline-none focus:ring"
-          >
-          </v-select>
-        </div>
-
-        <div>
-          <label class="text-gray-200" for="includeDir">Include Directory</label>
-          <input id="includeDir" type="text" v-model="includeDir"
-                 class="block w-full px-4 py-2 mt-2 border rounded-md
-                  bg-gray-800 text-gray-300 border-gray-600 focus:border-blue-500 focus:outline-none focus:ring"
-                 placeholder="include">
-        </div>
-
-        <div>
-          <label class="text-gray-200" for="dependencies">Dependencies</label>
-          <input id="dependencies" type="text" v-model="dependencies"
-                 class="block w-full px-4 py-2 mt-2 border rounded-md
-                  bg-gray-800 text-gray-300 border-gray-600 focus:border-blue-500 focus:outline-none focus:ring"
-                 placeholder="libft mlx">
-        </div>
-
-        <div class="flex justify-evenly">
+        <div class="flex justify-center space-x-12">
           <div class="flex">
-            <input type="checkbox" id="valgrind" name="valgrind" v-model="valgrind" class="mt-1 rounded bg-gray-800">
-            <label for="valgrind" class="ms-3 text-gray-200"> Add Valgrind</label>
+            <input
+              id="valgrind"
+              v-model="valgrind"
+              type="checkbox"
+              name="valgrind"
+              class="mt-1 rounded bg-gray-800"
+            >
+            <label
+              for="valgrind"
+              class="ms-3 text-gray-200"
+            > Add Valgrind</label>
           </div>
 
           <div class="flex">
-            <input type="checkbox" id="gdb" name="gdb" v-model="gdb" class="mt-1 rounded bg-gray-800">
-            <label for="gdb" class="ms-3 text-gray-200"> Add GDB</label>
+            <input
+              id="gdb"
+              v-model="gdb"
+              type="checkbox"
+              name="gdb"
+              class="mt-1 rounded bg-gray-800"
+            >
+            <label
+              for="gdb"
+              class="ms-3 text-gray-200"
+            > Add GDB</label>
           </div>
         </div>
       </div>
 
       <div class="flex justify-end mt-6">
-        <button type="submit"
-                @click.prevent="() => generate()"
-                class="px-6 py-2 leading-5 text-white transition-colors duration-200
-                 transform bg-blue-800 rounded-md hover:bg-blue-600">
+        <button
+          type="submit"
+          class="px-6 py-2 leading-5 text-white transition-colors duration-200
+                 transform bg-blue-800 rounded-md hover:bg-blue-600"
+          @click.prevent="() => generate()"
+        >
           Generate
         </button>
       </div>
     </form>
   </section>
-  <CodeModal v-model="modalIsOpen" content="">
-  </CodeModal>
+  <CodeModal
+    v-model="modalIsOpen"
+    content=""
+  />
 </template>
 
 <style scoped>
