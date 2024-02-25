@@ -3,7 +3,7 @@
 </script>
 
 <template>
-  <footer class="fixed bottom-0 w-full p-4 bg-gray-900 text-white font-semibold">
+  <footer class="w-full p-4 bg-gray-900 text-white font-semibold">
     <div class="flex justify-center space-x-2">
       <p> Made with </p>
       <svg

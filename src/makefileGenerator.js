@@ -1,4 +1,4 @@
-export function generateMakefile(project, selectedFiles, compilerFlags, compiler, sourceDir, objectDir, libs, includeDir, dependencies, args, valgrind, gdb) {
+export function generateMakefile(project, sourceFiles, compilerFlags, compiler, sourceDir, objectDir, libs, includeDir, dependencies, args, valgrind, gdb) {
     let makefile = '';
     makefile += `NAME\t:= ${project}\n`
     makefile += `\n`
@@ -34,7 +34,20 @@ export function generateMakefile(project, selectedFiles, compilerFlags, compiler
     }
     makefile += `\n`
     makefile += `\n`
-    makefile += `SRC\t\t:= ${selectedFiles.join(" ")}\n`
+    let srcLine = 'SRC\t\t:= ';
+    let srcLines = [];
+
+    for (let file of sourceFiles) {
+        if ((srcLine + file).length > 80) {
+            srcLine += ' \\';
+            srcLines.push(srcLine);
+            srcLine = '\t\t\t';
+        }
+        srcLine += file + ' ';
+    }
+
+    srcLines.push(srcLine);
+    makefile += srcLines.join("\n") + "\n";
     makefile += `OBJ\t\t:= $(SRC:%.c=$(OBJ_DIR)/%.o)\n`
     makefile += `\n`
     if (args) {

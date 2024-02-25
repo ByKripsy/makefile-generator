@@ -6,12 +6,29 @@ import { ModalsContainer } from 'vue-final-modal';
 </script>
 
 <template>
-  <Header name="Makefile Generator" />
-  <MainForm />
-  <Footer />
-  <ModalsContainer />
+  <div class="flex flex-col h-screen justify-between overflow-y-auto">
+    <Header name="Makefile Generator" />
+    <MainForm />
+    <ModalsContainer />
+    <Footer />
+  </div>
 </template>
 
 <style scoped>
+::-webkit-scrollbar {
+  width: 5px;
+}
 
+::-webkit-scrollbar-track {
+  background: #FFFFFF00;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
 </style>

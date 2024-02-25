@@ -79,7 +79,7 @@ function generate() {
 
 <template>
   <Alert />
-  <section class="max-w-4xl p-6 mx-auto bg-gray-800 rounded-md shadow-md mt-20 z-0">
+  <section class="w-1/2 my-20 p-6 mx-auto bg-gray-800 rounded-md shadow-md z-0">
     <form>
       <div class="grid grid-cols-1 gap-6 mt-4 sm:grid-cols-2">
         <Input
